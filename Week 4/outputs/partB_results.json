@@ -1,0 +1,58 @@
+{
+  "B1": [
+    {
+      "window": 7,
+      "raw_sd": 6783.3436,
+      "smoothed_sd": 4635.3973,
+      "variation_removed_pct": 31.7,
+      "periods_lost_each_end": 3
+    },
+    {
+      "window": 28,
+      "raw_sd": 6783.3436,
+      "smoothed_sd": 4427.721,
+      "variation_removed_pct": 34.7,
+      "periods_lost_each_end": 14
+    },
+    {
+      "window": 91,
+      "raw_sd": 6783.3436,
+      "smoothed_sd": 4144.1547,
+      "variation_removed_pct": 38.9,
+      "periods_lost_each_end": 45
+    }
+  ],
+  "B2": {
+    "raw": 113710.0,
+    "mean14": 33402.71428571428,
+    "median14": 24765.5,
+    "ewma14": 37978.2127095737,
+    "fortnight_median": 24760.0
+  },
+  "B3": {
+    "weekly_amplitude": 7633.004461604463,
+    "largest_resid_date": "2024-11-29",
+    "largest_resid": 74676.2696488325,
+    "period365_error": "x must have 2 complete cycles requires 730 observations. x only has 529 observation(s)"
+  },
+  "B4": {
+    "peak": {
+      "trailing": "2024-12-23",
+      "centred": "2024-12-08",
+      "lag": 15
+    },
+    "low": {
+      "trailing": "2024-05-16",
+      "centred": "2024-05-01",
+      "lag": 15
+    },
+    "half_window": 15
+  },
+  "B5": {
+    "rising": 34,
+    "falling": 26,
+    "rising_sig": 10,
+    "falling_sig": 8,
+    "full_series_slope": 21.610262543382742
+  }
+}

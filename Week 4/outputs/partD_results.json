@@ -1,0 +1,185 @@
+{
+  "cleaning_logs": [
+    {
+      "fault": "mixed timestamp formats",
+      "rule": "parse ISO rows as %Y-%m-%d %H:%M:%S and slash rows as %d/%m/%Y %H:%M (first field reaches 31, second never exceeds 12 => day-first)",
+      "n_iso": 9019,
+      "n_slash": 3651,
+      "slash_first_field_max": 31,
+      "slash_second_field_max": 12,
+      "rows_removed": 0
+    },
+    {
+      "fault": "rows not in time order",
+      "rule": "sort_index()",
+      "already_sorted": false,
+      "rows_removed": 0
+    },
+    {
+      "fault": "inconsistent device labels",
+      "rule": "strip + title-case",
+      "before": {
+        "Mobile": 6994,
+        "Desktop": 3452,
+        "mobile": 883,
+        "Tablet": 777,
+        "desktop": 318,
+        "MOBILE ": 246
+      },
+      "after": {
+        "Mobile": 8123,
+        "Desktop": 3770,
+        "Tablet": 777
+      },
+      "rows_removed": 0
+    },
+    {
+      "fault": "duplicated hours",
+      "rule": "keep first row per timestamp (verified: every duplicate pair is value-identical)",
+      "n_timestamps_duplicated": 286,
+      "all_pairs_identical": true,
+      "rows_removed": 286
+    },
+    {
+      "fault": "sentinel -1 in sessions",
+      "rule": "sessions == -1 -> NaN (flagged in sessions_missing)",
+      "n_sentinel": 287,
+      "other_columns_touched": false,
+      "rows_removed": 0
+    },
+    {
+      "fault": "sentinel hours (fill)",
+      "rule": "median of same day-of-week x hour; flagged in sessions_imputed",
+      "n_filled": 287,
+      "sessions_filled_total": 280239.0
+    },
+    {
+      "fault": "days never recorded",
+      "rule": "reindex to a complete hourly calendar, count gaps there, then resample('D').sum(min_count=24); gap days stay NaN (line breaks, not zeros)",
+      "n_missing_hours": 312,
+      "n_gap_days": 13,
+      "gap_days": [
+        "2024-05-18",
+        "2024-07-02",
+        "2024-07-03",
+        "2024-09-27",
+        "2024-11-11",
+        "2024-12-25",
+        "2025-01-01",
+        "2025-02-14",
+        "2025-03-30",
+        "2025-03-31",
+        "2025-06-07",
+        "2025-07-19",
+        "2025-08-23"
+      ],
+      "rows_removed": 0
+    },
+    {
+      "fault": "partial final month",
+      "tail_month": "2025-09",
+      "days_present": 11,
+      "days_in_month": 30,
+      "rule": "kept on the daily chart, shaded and labelled partial; never compared as a monthly total",
+      "tail_start": "2025-09-01"
+    }
+  ],
+  "catalogue_logs": [
+    {
+      "fault": "SKU with two parents (not a tree)",
+      "rule": "keep the row whose sku_name prefix matches its sub-category's home; drop the other copy",
+      "skus": [
+        "SKU-0127"
+      ],
+      "rows_removed": 1,
+      "removed_parent": [
+        "Wearables"
+      ],
+      "kept_parent": [
+        "Audio"
+      ],
+      "net_revenue_removed_pkr_m": 14.8275
+    },
+    {
+      "fault": "negative net revenue",
+      "rule": "never drawn as area; netted inside sub-category totals (all totals > 0) and reported",
+      "n_negative_skus": 7,
+      "sum_negative_pkr_m": -1.0693000000000001,
+      "rows_removed": 0,
+      "by_subcategory": {
+        "Accessories": {
+          "count": 1,
+          "sum": -0.0001
+        },
+        "Drones": {
+          "count": 2,
+          "sum": -0.1136
+        },
+        "Footwear": {
+          "count": 2,
+          "sum": -0.6249
+        },
+        "Wearables": {
+          "count": 2,
+          "sum": -0.3307
+        }
+      }
+    },
+    {
+      "fault": "levels rolled up",
+      "rule": "344 SKUs summed to 8 sub-categories; depth cut at sub-category; no 'Other' bucket needed (smallest sub-category is 2.4% of the total)",
+      "n_skus_in": 344,
+      "n_subcategories": 8,
+      "other_bucket": {
+        "n_categories": 0,
+        "value_pkr_m": 0.0
+      },
+      "total_net_pkr_m": 1711.3815,
+      "rows_removed": 0
+    }
+  ],
+  "figure_numbers": {
+    "ratio": 1.7464422977043732,
+    "peak_month": "Dec 2024",
+    "trough_month": "May 2025",
+    "peak1": 25219.5,
+    "trough": 21097.0,
+    "latest_month": "2025-08",
+    "latest": 26403.0,
+    "first_median": 14440.5,
+    "heatmap_peak": [
+      "Sat",
+      20,
+      2336.2714285714287,
+      1731.2331192846984
+    ],
+    "top2": [
+      "Phones",
+      "Laptops"
+    ],
+    "top2_share": 42.992582308503394,
+    "smallest": [
+      "Drones",
+      2.4065177752593447
+    ]
+  },
+  "shares": {
+    "Audio": 14.99,
+    "Cameras": 5.97,
+    "Drones": 2.407,
+    "Laptops": 18.231,
+    "Footwear": 10.957,
+    "Wearables": 9.347,
+    "Accessories": 13.336,
+    "Phones": 24.762
+  },
+  "mixed_parse_damage": {
+    "mixed_min": "2024-01-04 01:00:00",
+    "mixed_max": "2025-12-08 22:00:00",
+    "correct_min": "2024-04-01 00:00:00",
+    "correct_max": "2025-09-11 23:00:00",
+    "rows_on_wrong_date": 1382,
+    "span_days_mixed": 704,
+    "span_days_correct": 528
+  }
+}
