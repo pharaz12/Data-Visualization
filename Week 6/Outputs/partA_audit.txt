@@ -1,0 +1,147 @@
+========================================================================
+AUDIT 1 - district_grid.csv
+========================================================================
+shape: (25, 13)
+dtypes:
+code                       str
+district                   str
+zone                       str
+population               int64
+households               int64
+area_km2               float64
+lon                    float64
+lat                    float64
+income_pc_usd            int64
+electrification_pct        str
+solar_kw_installed       int64
+outages                  int64
+outage_minutes           int64
+nulls per column: {'electrification_pct': 3}
+key `code` unique: False | duplicated keys: ['D11']
+   code    district zone  population  households  area_km2      lon      lat  income_pc_usd electrification_pct  solar_kw_installed  outages  outage_minutes
+10  D11       Kotla   P3     4091000      616114   18868.1  72.5678  29.0466           5950                76.0              719625    31283         6422838
+11  D11  Kotla City   P3     4091000      616114   18868.1  72.5678  29.0466           5950                76.0              719637    31280         6422428
+electrification_pct dtype = str; text entries that are not numbers: {'D04': '88.1%', 'D18': '72.9%'}; genuinely blank: ['D06', 'D14', 'D23']
+sentinel codes (-1, 999, ...) found in: {'outage_minutes': ['D09', 'D20']}
+range population :      468,000.0 ..   10,966,000.0
+range households :          182.0 ..    1,566,571.0
+range area_km2   :       16,745.7 ..       95,677.6
+range outages    :        3,234.0 ..       63,237.0
+persons per household: min 5.70  max 5,940   <- implausible rows: ['D21']
+persons per household of the other rows: 5.70 .. 7.36
+join register -> GeoJSON on `code`: register codes with no polygon: []; polygons with no register row: []
+join register zones vs daily zones: register-only [], daily-only []
+
+AFTER CLEANING - register
+rows 24 | population 57,857,000 | households 8,908,512 | interruptions 388,879
+persons per household 5.70 .. 7.36
+electrification_pct 66.6 .. 90.3 with 3 missing
+usable outage_minutes 22 of 24; mean interruption length 77 .. 214 min
+join register -> GeoJSON: 24 matched, 0 unmatched
+
+========================================================================
+AUDIT 2 - grid_daily.csv
+========================================================================
+shape: (3061, 5)
+dtypes:
+date                  str
+zone                  str
+cumulative_mwh    float64
+peak_load_mw      float64
+outage_minutes      int64
+date formats: ISO yyyy-mm-dd = 2887, dd/mm/yyyy-looking = 174, neither = 0
+slash dates: first field up to 30 (>12 so it cannot be a month => dd/mm), second field always ['11'], year ['2025']
+row order sorted by (zone, date)? False - the file is shuffled
+zones: ['P1', 'P2', 'P3', 'P4', 'P5', 'P6']
+duplicate (date, zone) keys: 15 | fully identical duplicate rows: 12
+sentinel scan cumulative_mwh : none   min 1,180.0  max 63,210,730.9
+sentinel scan peak_load_mw   : {-1.0: 46}   min -1.0  max 9,917.5
+sentinel scan outage_minutes : none   min 0.0  max 512.0
+outage_minutes == 0: 213 rows (a legitimate 'no interruption' day, kept)
+
+exact duplicate rows removed: 12
+conflicting duplicates (same zone-day, different peak/outage; identical meter reading): 3 zone-days
+           date zone  cumulative_mwh  peak_load_mw  outage_minutes
+23   2025-10-25   P3      12363361.7        2429.7             159
+260  2025-10-25   P3      12363361.7        2337.4             215
+717  2026-02-25   P5      12010147.6        1004.9              11
+971  2026-02-25   P5      12010147.6        1044.6               8
+1891 2026-08-16   P5      15736740.2        1491.1              63
+2282 2026-08-16   P5      15736740.2        1550.0              47
+peak_load_mw = -1 : 46 zone-days, in zones ['P1', 'P2', 'P3', 'P4', 'P5', 'P6']
+after: unusable peak readings = 46; remaining range 914.0 .. 9,917.5 MW
+
+tslib.audit_index per zone (freq = 'D'):
+zone  rows  datetime  sorted  dup  missing_days  partial_tail tail_period  tail_rows
+  P1   517      True    True    0            12          True     2026-09         11
+  P2   508      True    True    0            21          True     2026-09         11
+  P3   514      True    True    0            15          True     2026-09         11
+  P4   505      True    True    0            24          True     2026-09         11
+  P5   493      True    True    0            36          True     2026-09         11
+  P6   509      True    True    0            20          True     2026-09         11
+reporting span 2025-04-01 -> 2026-09-11 = 529 days x 6 zones = 3174 slots; kept 3046; never reported 128
+never-reported zone-days by zone: {'P1': 12, 'P2': 21, 'P3': 15, 'P4': 24, 'P5': 36, 'P6': 20} (not evenly spread)
+
+zone-days where the meter reading goes DOWN: 1
+           date zone  cumulative_mwh   d_reading
+1843 2026-02-14   P4      21366810.7     40553.0
+1844 2026-02-15   P4      21405343.8     38533.1
+1845 2026-02-16   P4      21444254.8     38911.0
+1846 2026-02-17   P4          1180.0 -21443074.8
+1847 2026-02-18   P4         43381.4     42201.4
+1848 2026-02-19   P4         83964.4     40583.0
+1849 2026-02-20   P4        124970.9     41006.5
+reset in P4 on 2026-02-17: reading fell to 1,180.0; offset +21,481,607.9 MWh applied to 198 rows (that day's own energy is estimated as the trailing 7-day median 38,533 MWh)
+after: negative daily energy = 0
+
+P1, June 2026: differenced 1,199,207 MWh  vs  sum() of the meter column 574,845,315 MWh  ->  sum() is 479x too big
+
+AFTER CLEANING - daily: 3,046 zone-days kept | span 2025-04-01 -> 2026-09-11 | never reported 128 | unusable peak 46 | meter falls remaining 0
+
+========================================================================
+AUDIT 3 - generation_mix.csv
+========================================================================
+shape: (162, 4) | months 18 (2025-04 .. 2026-09) | rows per month [9]
+dtypes:
+month          str
+source         str
+subsource      str
+mwh          int64
+duplicate (month, source, subsource): 0 | mwh range 446,189 .. 12,105,903 | sentinels: 0
+categories: [['All sources', 'Total'], ['Fossil', 'Coal'], ['Fossil', 'Furnace oil'], ['Fossil', 'Gas'], ['Hydro', 'Dam'], ['Hydro', 'Run-of-river'], ['Imported', 'Imported'], ['Renewable', 'Solar'], ['Renewable', 'Wind']]
+parts: 144 rows = 18 months x 8 categories
+parts summed vs published total: largest gap 2 MWh (rounding)
+EVERY row of the file summed, as % of the energy generated: 200.0% .. 200.0%  <- the 'Total' row is a whole sitting among its own parts
+
+Generation 2025-04 -> 2026-09: -5.0%  |  solar +82.1% in MWh, share of the mix 4.1% -> 7.9%  (both true at once)
+
+GeoJSON <-> register: 24 matched, 0 unmatched
+register zones <-> daily zones: 6 matched, 0 unmatched
+
+                                 check        ours    expected  pass
+                 cleaned register rows        24.0        24.0  PASS
+                            population  57857000.0  57857000.0  PASS
+                            households   8908512.0   8908512.0  PASS
+            persons/household min x100       570.0       570.0  PASS
+            persons/household max x100       736.0       736.0  PASS
+               electrification min x10       666.0       666.0  PASS
+               electrification max x10       903.0       903.0  PASS
+               electrification missing         3.0         3.0  PASS
+  districts with usable outage_minutes        22.0        22.0  PASS
+           mean interruption min (min)        77.0        77.0  PASS
+           mean interruption min (max)       214.0       214.0  PASS
+          interruptions, all districts    388879.0    388879.0  PASS
+                        zone-days kept      3046.0      3046.0  PASS
+                        reporting days       529.0       529.0  PASS
+                       slots (529 x 6)      3174.0      3174.0  PASS
+              zone-days never reported       128.0       128.0  PASS
+                 unusable peak_load_mw        46.0        46.0  PASS
+             meter reading falls (raw)         1.0         1.0  PASS
+P1 June 2026 energy, differenced (MWh)   1199207.0   1200239.0 CHECK
+              ... summed instead (MWh) 574845315.0 574845315.0  PASS
+                  ... sum is x too big       479.0       479.0  PASS
+                  generation part rows       144.0       144.0  PASS
+  parts vs total, worst gap (MWh) <= 2         2.0         2.0  PASS
+      every row summed, % of generated       200.0       200.0  PASS
+                       GeoJSON matched        24.0        24.0  PASS
+                     GeoJSON unmatched         0.0         0.0  PASS
