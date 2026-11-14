@@ -1,0 +1,254 @@
+
+==============================================================================
+1. district_transit.csv (the district register)
+==============================================================================
+shape: (25, 13) | null cells: 0 | exact duplicate rows: 0
+dtypes:
+code                       str
+district                   str
+population               int64
+households               int64
+area_km2               float64
+lon                    float64
+lat                    float64
+income_pc_usd            int64
+stops                    int64
+road_km                float64
+boardings_annual         int64
+fare_concession_pct    float64
+vehicles_registered      int64
+code unique as filed: True
+codes not in the D## form: ['d13', 'D 20']
+GeoJSON features matched on the register key AS FILED: 22 of 24
+register codes with no polygon: ['D 20', 'D00', 'd13']
+population / households, all 25 rows: 60,747,000 / 9,321,212
+districts reading UNDER 1 boarding per resident per year: 3 -> ['D05', 'D15', 'D23'] [0.0204, 0.0187, 0.0119]
+fare_concession_pct as filed, rows <= 1 (a fraction, not a %): ['D02', 'D10', 'D18', 'D22']
+road_km <= 0 (a code, not a length): ['D06', 'D16']
+
+ranges of everything we will divide by:
+     population  households  area_km2  road_km  stops
+min      468000       76721    1180.0     -1.0     35
+max    10966000     1566571   95677.6   4586.0   2963
+
+1a key repaired on 2 rows -> GeoJSON match 22 -> 24 of 24
+1b rows with no polygon: [{'code': 'D00', 'district': 'Qilabad Capital Territory', 'population': 2890000}]
+1c boardings_annual rows in thousands: ['D05', 'D15', 'D23']
+1d fare_concession_pct filed as a fraction: ['D02', 'D10', 'D18', 'D22']
+1e road_km == -1 (operator code): ['D06', 'D16']
+
+AFTER REPAIR: rows 24 | unique codes True | GeoJSON matched 24
+population / households: 57,857,000 / 8,908,512
+boardings_annual (24 districts): 873,564,130
+boardings per 1,000 residents: 4,683 - 30,655, national pooled 15,099
+fare_concession_pct: 20.9 - 42.6
+road_km usable: 22 of 24
+
+==============================================================================
+2. routes.csv (the route table)
+==============================================================================
+shape: (36, 12) | route_id unique: True | null cells: 0 | duplicate rows: 0
+dtypes:
+route_id                    str
+mode                        str
+corridor                    str
+length_km               float64
+stops                     int64
+fleet                     int64
+districts_served            str
+boardings_annual          int64
+punctuality_pct         float64
+crowding_index          float64
+cost_recovery_pct       float64
+subsidy_pkr_per_trip    float64
+
+mode value_counts AS FILED:
+mode
+Bus                  22
+Metro                 4
+Ferry                 4
+BRT                   3
+brt                   2
+Bus Rapid Transit     1
+punctuality_pct        min        62.90  max         999.00   values == 999: 3  == 0: 0
+cost_recovery_pct      min         0.00  max          66.30   values == 999: 0  == 0: 2
+crowding_index         min         0.40  max           1.32   values == 999: 0  == 0: 0
+subsidy_pkr_per_trip   min        12.90  max          50.90   values == 999: 0  == 0: 0
+length_km              min        11.00  max          47.10   values == 999: 0  == 0: 0
+fleet                  min         6.00  max          69.00   values == 999: 0  == 0: 0
+boardings_annual       min 3,191,272.00  max 138,148,022.00   values == 999: 0  == 0: 0
+
+2a mode labels: 6 as filed -> 4 after; rows relabelled: 3
+2b punctuality_pct == 999: ['R003', 'R025', 'R033']
+2c cost_recovery_pct == 0.0: [{'route_id': 'R022', 'mode': 'Bus'}, {'route_id': 'R033', 'mode': 'Ferry'}] | smallest real value: 8.4
+
+2d districts_served: 20 distinct codes; join misses against the register: none
+routes serving more than one district: 28 of 36; mean 2.56, max 4
+true network boardings (each route once): 873,564,820
+attributed to every district a route serves: 2,704,739,571  = 3.096x  (exclusive: False)
+register total vs route total: 873,564,130 vs 873,564,820  -> differ by 690 boardings
+routes per mode after repair: {'Bus': 22, 'BRT': 6, 'Metro': 4, 'Ferry': 4}
+punctuality_pct usable: 33 of 36, range 62.9 - 98.8
+
+==============================================================================
+3. ridership_daily.csv (the control-room returns)
+==============================================================================
+rows as filed: 2159 | nulls: 0
+dtypes:
+date                 str
+mode                 str
+trips_scheduled    int64
+trips_operated     int64
+trips_on_time      int64
+boardings          int64
+delay_minutes      int64
+modes: {'Bus': 559, 'BRT': 544, 'Metro': 530, 'Ferry': 526}
+
+3a rows whose date is not in the main format (YYYY-MM-DD): 385
+   ... that FAIL a month-first parse: 230; that a month-first parse would SILENTLY accept as a different day: 155
+   explicit formats used: %Y-%m-%d and %d/%m/%Y; span 2025-04-01 -> 2026-09-30
+
+3b exact re-submissions: 30 (a string-level duplicated() finds only 23: the rest hide behind the two date formats)
+   by mode: {'Bus': 30} | by month: {'2026-05': 30}
+   conflicting duplicates (same date+mode, different numbers): 0
+   rows after de-duplication: 2129
+
+3c impossible rows: 7  (operated > scheduled: 0; on_time > operated: 7; negatives: 0)
+           date   mode  trips_scheduled  trips_operated  trips_on_time  boardings  delay_minutes
+431  2026-04-21    BRT             2190            2106           2115     728457           3366
+741  2026-09-20    BRT             1531            1503           1520     451173           2155
+766  2026-05-16    BRT             1896            1843           1861     619776           2617
+1137 2025-06-14  Metro             1228            1214           1224     656225            739
+1366 2026-04-12  Ferry              199             199            202      37319            410
+1522 2025-08-26  Metro             1605            1566           1587     774290            908
+1692 2026-01-23  Ferry              292             291            295      52245            578
+
+3d span 2025-04-01 -> 2026-09-30 = 548 days x 4 modes = 2,192 slots; filed 2,129; NEVER FILED 63
+   not filed, by mode: {'Ferry': 22, 'Bus': 19, 'Metro': 18, 'BRT': 4}
+   longest runs of unfiled days: [('Metro', '2026-02-09', '2026-02-22', 14), ('Bus', '2026-09-22', '2026-09-30', 9), ('Ferry', '2026-09-22', '2026-09-30', 9), ('BRT', '2025-08-28', '2025-08-28', 1)]
+   slots filed from 2026-09-22 onward: 18 of 36 -> {'BRT': 9, 'Metro': 9} (Bus and Ferry stopped filing)
+
+3e boardings, 12 months to 2026-08-31: 845,531,940 (de-duplicated) | with re-submissions left in: 864,127,819 (+2.20%) | after dropping the 7 impossible rows: 844,094,143
+   Bus, May 2026, with / without the re-submissions: 37,191,758 / 18,595,879 = 2.00x
+   register annual total vs what the returns account for: 873,564,130 vs 845,531,940  -> the returns cover 96.8%; the missing 3.2% is the days nobody filed
+
+==============================================================================
+4. fare_revenue.csv (the published fare table)
+==============================================================================
+shape: (288, 5) | nulls: 0 | duplicate (month, mode, ticket_type): 0
+dtypes:
+month            str
+mode             str
+ticket_type      str
+trips          int64
+revenue_pkr    int64
+ticket_type: {'All tickets': 72, 'Daily': 72, 'Monthly': 72, 'Single': 72}
+months: 2025-04 -> 2026-09 (18)
+min trips / revenue: 56946 2271614
+
+rows 288 = 216 parts + 72 that are not parts
+drilldown_check(trips): summing EVERY row = 200.0% of the parts | reconciles: True | worst disagreement 0
+drilldown_check(revenue_pkr): summing EVERY row = 200.0% of the parts | reconciles: True | worst disagreement 0
+journeys / revenue over the 18 months: 934,051,014 / 36,669,953,119 PKR | mean fare 39.3 PKR per journey
+boardings / journeys, complete months, 7 impossible rows dropped: 1.303 (every 1,000 journeys produce about 1,303 boardings: people change vehicles)
+
+calendar status counts: {'filed': 2122, 'not_filed': 63, 'withheld_impossible': 7}
+wrote: ['district_transit_clean.csv', 'fare_revenue_clean.csv', 'ridership_calendar.csv', 'ridership_daily_clean.csv', 'routes_clean.csv']
+
+==============================================================================
+6. verification against the brief
+==============================================================================
+  OK  register rows out                    got               24  expected               24
+  OK  population                           got         57857000  expected         57857000
+  OK  households                           got          8908512  expected          8908512
+  OK  population if D00 kept               got         60747000  expected         60747000
+  OK  boardings_annual after repair        got        873564130  expected        873564130
+  OK  districts under 1 boarding/resident  got                3  expected                3
+  OK  GeoJSON as filed                     got               22  expected               22
+  OK  GeoJSON after                        got               24  expected               24
+  OK  rate min per 1000                    got             4683  expected             4683
+  OK  rate max per 1000                    got            30655  expected            30655
+  OK  pooled rate per 1000                 got            15099  expected            15099
+  OK  concession min                       got             20.9  expected             20.9
+  OK  concession max                       got             42.6  expected             42.6
+  OK  road_km usable                       got               22  expected               22
+  OK  routes rows                          got               36  expected               36
+  OK  mode labels as filed                 got                6  expected                6
+  OK  mode labels after                    got                4  expected                4
+  OK  Bus                                  got               22  expected               22
+  OK  BRT                                  got                6  expected                6
+  OK  Metro                                got                4  expected                4
+  OK  Ferry                                got                4  expected                4
+  OK  punctuality usable                   got               33  expected               33
+  OK  punctuality min                      got             62.9  expected             62.9
+  OK  punctuality max                      got             98.8  expected             98.8
+  OK  cost_recovery codes                  got                2  expected                2
+  OK  route boardings total                got        873564820  expected        873564820
+  OK  attributed total                     got       2704739571  expected       2704739571
+  OK  attributed factor                    got            3.096  expected            3.096
+  OK  multi-district routes                got               28  expected               28
+  OK  mean districts per route             got             2.56  expected             2.56
+  OK  max districts                        got                4  expected                4
+  OK  daily rows as filed                  got             2159  expected             2159
+  OK  non-ISO dates                        got              385  expected              385
+  OK  fail month-first                     got              230  expected              230
+  OK  silently mis-dated                   got              155  expected              155
+  OK  re-submissions                       got               30  expected               30
+  OK  rows after de-dup                    got             2129  expected             2129
+  OK  impossible rows                      got                7  expected                7
+  OK  slots in span                        got             2192  expected             2192
+  OK  slots never filed                    got               63  expected               63
+  OK  longest gap (days)                   got               14  expected               14
+  OK  filed from 2026-09-22                got               18  expected               18
+  OK  12m boardings                        got        845531940  expected        845531940
+  OK  12m with dups                        got        864127819  expected        864127819
+  OK  +% with dups (x100)                  got              2.2  expected              2.2
+  OK  May x                                got              2.0  expected              2.0
+  OK  returns cover % of register          got             96.8  expected             96.8
+  OK  sum-every-row % trips                got            200.0  expected            200.0
+  OK  sum-every-row % revenue_pkr          got            200.0  expected            200.0
+  OK  fare rows                            got              288  expected              288
+  OK  parts                                got              216  expected              216
+  OK  totals                               got               72  expected               72
+  OK  18-month journeys                    got        934051014  expected        934051014
+  OK  18-month revenue                     got      36669953119  expected      36669953119
+  OK  mean fare                            got             39.3  expected             39.3
+  OK  boardings/journeys ~1.30             got              1.3  expected              1.3
+
+56 of 56 checks match the brief
+
+
+==============================================================================
+TASK D - channel plan and palette check
+==============================================================================
+channel_conflicts(): ok = True, conflicts = {}
+channels used: {'x': ['month (sparkline)', 'period', 'share of departures %', 'change in PKR per journey'], 'y': ['network on-time %', 'on-time %', 'mode', 'component'], 'hue': ['mode'], 'shape': ['period'], 'lightness': ['boardings per 1,000 residents']}
+redundant (deliberate): {'period': ['x', 'shape'], 'mode': ['y', 'hue']}
+positional (reported, not flagged): {'x': ['month (sparkline)', 'period', 'share of departures %', 'change in PKR per journey'], 'y': ['network on-time %', 'on-time %', 'mode', 'component']}
+
+  hue: mode (Metro blue, BRT green, Bus orange, Ferry pink) - nothing else uses hue; the kpi delta and the map are deliberately NOT coloured
+  shape: period (hollow = 2025 Q2, filled = 2026 Q2) in panels 2 and 3 - one meaning
+  lightness: boardings per 1,000 residents, panel 5 only (a grey ramp, so it cannot be read as a mode)
+
+deutan simulation
+  #0072B2  ->  #3B67B1
+  #009E73  ->  #8A8676
+  #D55E00  ->  #9E8C00
+  #CC79A7  ->  #9498A5
+protan simulation
+  #0072B2  ->  #5375B5
+  #009E73  ->  #9A9271
+  #D55E00  ->  #817100
+  #CC79A7  ->  #808BA9
+tritan simulation
+  #0072B2  ->  #008289
+  #009E73  ->  #009E92
+  #D55E00  ->  #EB4050
+  #CC79A7  ->  #D6788A
+
+worst pair under normal : #D55E00 vs #CC79A7  dE 16.4 -> clear
+worst pair under deutan : #009E73 vs #CC79A7  dE 7.5 -> needs a second channel
+worst pair under protan : #0072B2 vs #CC79A7  dE 9.5 -> ok
+worst pair under tritan : #0072B2 vs #009E73  dE 8.4 -> ok
+Pairs under dE 8 are legal only with a second channel: every mode is ALSO direct-labelled; identity is never colour alone.
+The map uses a single-hue grey lightness ramp (no hue), so it cannot collide with the mode hues.
